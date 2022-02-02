@@ -1,11 +1,14 @@
 package com.keyup.auth.config;
 
 import com.keyup.auth.filters.JWTAuthenticationFilter;
+import com.keyup.auth.filters.JWTAuthorizationFilter;
+import com.keyup.auth.service.JWTService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
@@ -15,10 +18,14 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 @Configuration
 @EnableWebSecurity
+@EnableGlobalMethodSecurity(securedEnabled = true)
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Autowired
     private UserDetailsService userDetailsService;
+
+    @Autowired
+    private JWTService jwtService;
 
     @Value("${app.security.secret-key}")
     private String secretKey;
@@ -36,7 +43,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         httpSecurity
                 .authorizeRequests().antMatchers().permitAll()
                 .anyRequest().authenticated().and()
-                .addFilter(new JWTAuthenticationFilter(authenticationManager(), secretKey, Long.parseLong(timeExpiration)))
+                .addFilter(new JWTAuthenticationFilter(authenticationManager(), jwtService, secretKey, Long.parseLong(timeExpiration)))
+                .addFilter(new JWTAuthorizationFilter(authenticationManager(), jwtService, secretKey))
                 .csrf().disable()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
 

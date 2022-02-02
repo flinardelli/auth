@@ -1,7 +1,9 @@
 package com.keyup.auth.filters;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.keyup.auth.model.entity.UserEntity;
+import com.keyup.auth.service.JWTService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -26,11 +28,13 @@ import java.util.Map;
 public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
     private final AuthenticationManager authenticationManager;
+    private final JWTService jwtService;
     private final String secretKey;
     private final Long timeExpiration;
 
-    public JWTAuthenticationFilter(AuthenticationManager authenticationManager, String secretKey, Long timeExpiration) {
+    public JWTAuthenticationFilter(AuthenticationManager authenticationManager, JWTService jwtService, String secretKey, Long timeExpiration) {
         this.authenticationManager = authenticationManager;
+        this.jwtService = jwtService;
         this.secretKey = secretKey;
         this.timeExpiration = timeExpiration;
 
@@ -63,20 +67,7 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 
     @Override
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authResult) throws IOException, ServletException {
-        String username = authResult.getName();
-
-        Collection<? extends GrantedAuthority> roles = authResult.getAuthorities();
-
-        Claims claims = Jwts.claims();
-        claims.put("authorities", new ObjectMapper().writeValueAsString(roles));
-
-        String token = Jwts.builder()
-                .setClaims(claims)
-                .setSubject(username)
-                .signWith(SignatureAlgorithm.HS512, secretKey.getBytes())
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + timeExpiration))
-                .compact();
+        String token = jwtService.create(authResult, secretKey, timeExpiration);
 
         response.addHeader("Authorization", "Bearer " + token);
 
